@@ -10,6 +10,27 @@ from models.utils import farthest_point_sampling
 from .transforms import NormalizeUnitSphere
 
 
+def mbes_denoise(model, pcl_noisy, ld_step_size=0.2, ld_num_steps=30, step_decay=0.95, get_traj=False):
+    """
+    Args:
+        pcl_noisy:  Input point cloud, (N, 3)
+    """
+    assert pcl_noisy.dim() == 2, 'The shape of input point cloud must be (N, 3).'
+    N, d = pcl_noisy.size() # (N, 3)
+    pcl_noisy = pcl_noisy.unsqueeze(0)  # (1, N, 3)
+
+    with torch.no_grad():
+        model.eval()
+        pcl_denoised, traj = model.denoise_langevin_dynamics(pcl_noisy, step_size=ld_step_size, step_decay=step_decay, num_steps=ld_num_steps)
+        pcl_denoised = pcl_denoised.squeeze(0)
+
+    if get_traj:
+        for i in range(len(traj)):
+            traj[i] = traj[i].view(-1, d)
+        return pcl_denoised, traj
+    else:
+        return pcl_denoised
+
 def patch_based_denoise(model, pcl_noisy, ld_step_size=0.2, ld_num_steps=30, patch_size=1000, seed_k=3, denoise_knn=4, step_decay=0.95, get_traj=False):
     """
     Args:
