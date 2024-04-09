@@ -18,10 +18,7 @@ class DenoiseNet(nn.Module):
         super().__init__()
         self.args = args
         # geometry
-        self.frame_knn = args.frame_knn
-        self.num_train_points = args.num_train_points
-        self.num_clean_nbs = args.num_clean_nbs
-        if hasattr(args, 'num_selfsup_nbs'): self.num_selfsup_nbs = args.num_selfsup_nbs
+        #self.num_train_points = args.num_train_points
         # score-matching
         self.dsm_sigma = args.dsm_sigma
         # networks
