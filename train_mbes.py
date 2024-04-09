@@ -24,7 +24,7 @@ parser.add_argument('--train_batch_size', type=int, default=32)
 parser.add_argument('--num_workers', type=int, default=4)
 ## Model architecture
 #parser.add_argument('--frame_knn', type=int, default=32)
-#parser.add_argument('--num_train_points', type=int, default=128)
+parser.add_argument('--num_train_points', type=int, default=128)
 parser.add_argument('--dsm_sigma', type=float, default=10)
 parser.add_argument('--score_net_hidden_dim', type=int, default=32)
 parser.add_argument('--score_net_num_blocks', type=int, default=2)
@@ -79,6 +79,7 @@ val_dset = MBESPatchDataset(
 def custom_collate(data):
     pcl_clean = [d['pcl_clean'].clone().detach() for d in data]
     pcl_noisy = [d['pcl_noisy'].clone().detach() for d in data]
+    pcl_noisy_mean = [d['pcl_noisy_mean'].clone().detach() for d in data]
     pcl_length = [pcl.shape[0] for pcl in pcl_clean]
 
     pcl_clean = pad_sequence(pcl_clean, batch_first=True)
@@ -86,6 +87,7 @@ def custom_collate(data):
     return {
         'pcl_clean': pcl_clean,
         'pcl_noisy': pcl_noisy,
+        'pcl_noisy_mean': torch.stack(pcl_noisy_mean, axis=0),
         'pcl_length': torch.LongTensor(pcl_length),
     }
 

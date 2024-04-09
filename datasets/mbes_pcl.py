@@ -8,21 +8,14 @@ from tqdm.auto import tqdm
 class MBESPatchDataset(Dataset):
 
     def __init__(self, data_path, gt_path, transform, pings_subset=(0, 5000),
-                 subset='train', pings_per_patch=32, normalize_xy=False):
+                 subset='train', pings_per_patch=32):
         super().__init__()
         self.pings_subset = pings_subset
         self.pings_per_patch = pings_per_patch
         self.transform = transform
         self.subset = subset
-        self.normalize_xy = normalize_xy
         self.raw_cloud, self.raw_rejection_mask = self._load_raw_pointcloud(data_path)
         self.gt_cloud = self._load_gt_pointcloud(gt_path)
-
-    def _normalize_xy(self, pcl):
-        #TODO: normalize xy coordinates using mean and std OR [0, 1] OR [-1, 1]?
-        pcl[:, 0] = (pcl[:, 0] - np.mean(pcl[:, 0])) / np.std(pcl[:, 0])
-        pcl[:, 1] = (pcl[:, 1] - np.mean(pcl[:, 1])) / np.std(pcl[:, 1])
-        return pcl
 
     def _demean_points(self, pcl):
         pcl -= np.mean(pcl, axis=0)
@@ -62,24 +55,20 @@ class MBESPatchDataset(Dataset):
             pcl_clean = pcl_clean[gt_mask]
             pcl_noisy = pcl_noisy[gt_mask]
 
-        if self.normalize_xy:
-            pcl_noisy = self._normalize_xy(pcl_noisy)
-            pcl_clean = self._normalize_xy(pcl_clean)
-        else:
-            # compute mean XYZ of the noisy point cloud
-            pcl_noisy_mean = np.mean(pcl_noisy.reshape(-1, 3), axis=0)
-            pcl_noisy -= pcl_noisy_mean
-            pcl_clean -= pcl_noisy_mean
+        # compute mean XYZ of the noisy point cloud
+        pcl_noisy_mean = np.mean(pcl_noisy.reshape(-1, 3), axis=0)
+        pcl_noisy -= pcl_noisy_mean
+        pcl_clean -= pcl_noisy_mean
 
         data = {
             'pcl_clean': pcl_clean,
             'pcl_noisy': pcl_noisy,
+            'pcl_noisy_mean': pcl_noisy_mean,
         }
 
         if self.transform is not None:
             data = self.transform(data)
         
-        data['pcl_noisy'] = torch.from_numpy(data['pcl_noisy']).to(torch.float32).reshape(-1, 3)
-        data['pcl_clean'] = torch.from_numpy(data['pcl_clean']).to(torch.float32).reshape(-1, 3)
+        data = {k: torch.from_numpy(v).to(torch.float32) for k, v in data.items()}
 
         return data
