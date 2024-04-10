@@ -33,13 +33,25 @@ else:
     ckpt_mgr = BlackHole()
 logger.info(args)
 
+def get_data_transform(args_dataset):
+    if args_dataset.transform is None:
+        transforms = None
+    elif args_dataset.transform == 'add_noise_to_clean':
+        transforms = Compose([AddNoise(noise_std_min=args_dataset.noise_min,
+                                            noise_std_max=args_dataset.noise_max)])
+    elif args_dataset.transform == 'add_noise_to_noisy':
+        transforms = Compose([AddNoiseToNoisyPCL(noise_std_min=args_dataset.noise_min,
+                                            noise_std_max=args_dataset.noise_max)])
+    else:
+        raise ValueError('Invalid transform type: %s' % args_dataset.transform)
+    return transforms
+
 # Datasets and loaders
 logger.info('Loading datasets')
 train_dset = MBESPatchDataset(
     data_path=args.train_dataset.data_path,
     gt_path=args.train_dataset.gt_path,
-    transform=Compose([AddNoise(noise_std_min=args.train_dataset.noise_min,
-                                noise_std_max=args.train_dataset.noise_max)]),
+    transform=get_data_transform(args.train_dataset),
     pings_subset=args.train_dataset.pings_subset,
     pings_per_patch=args.train_dataset.pings_per_patch,
 )
@@ -47,7 +59,7 @@ train_dset = MBESPatchDataset(
 val_dset = MBESPatchDataset(
     data_path=args.val_dataset.data_path,
     gt_path=args.val_dataset.gt_path,
-    transform=None,
+    transform=get_data_transform(args.val_dataset),
     pings_subset=args.val_dataset.pings_subset,
     pings_per_patch=args.val_dataset.pings_per_patch,
 )

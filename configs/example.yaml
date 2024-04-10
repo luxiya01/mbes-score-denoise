@@ -6,11 +6,13 @@ train_dataset:
   pings_per_patch: 2
   noise_min: .5
   noise_max: 5
+  transform: 'add_noise_to_clean'
 val_dataset:
   data_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz'
   gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
   pings_subset: [1000, 1200]
   pings_per_patch: 2
+  transform: !!null
 
 #dataloader
 train_batch_size: 32
