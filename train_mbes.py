@@ -20,12 +20,14 @@ from models.utils import chamfer_distance_unit_sphere
 parser = argparse.ArgumentParser()
 ## Dataset and loader
 parser.add_argument('--train_batch_size', type=int, default=32)
+parser.add_argument('--noise_min', type=float, default=1.)
+parser.add_argument('--noise_max', type=float, default=10.)
 # parser.add_argument('--val_batch_size', type=int, default=64)
 parser.add_argument('--num_workers', type=int, default=4)
 ## Model architecture
 #parser.add_argument('--frame_knn', type=int, default=32)
 parser.add_argument('--num_train_points', type=int, default=128)
-parser.add_argument('--dsm_sigma', type=float, default=10)
+parser.add_argument('--dsm_sigma', type=float, default=1)
 parser.add_argument('--score_net_hidden_dim', type=int, default=32)
 parser.add_argument('--score_net_num_blocks', type=int, default=2)
 ## Optimizer and scheduler
@@ -63,7 +65,7 @@ logger.info('Loading datasets')
 train_dset = MBESPatchDataset(
     data_path='/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz',
     gt_path='/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy',
-    transform=None,
+    transform=Compose([AddNoise(noise_std_min=args.noise_min, noise_std_max=args.noise_max)]),
     pings_subset=(0, 2000),
     pings_per_patch=2,
 )
@@ -72,7 +74,7 @@ val_dset = MBESPatchDataset(
     data_path='/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz',
     gt_path='/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy',
     transform=None,
-    pings_subset=(1000, 1200),
+    pings_subset=(0, 200),
     pings_per_patch=1,
 )
 
@@ -108,9 +110,7 @@ optimizer = torch.optim.Adam(model.parameters(),
     lr=args.lr,
     weight_decay=args.weight_decay,
 )
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=10, verbose=True,
-)
+scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999)
 
 # Train, validate and test
 def train(it):
@@ -197,7 +197,7 @@ try:
             }
             ckpt_mgr.save(model, args, diff_loss, opt_states, step=it)
             # ckpt_mgr.save(model, args, 0, opt_states, step=it)
-            scheduler.step(diff_loss)
+            scheduler.step()
 
 except KeyboardInterrupt:
     logger.info('Terminating...')

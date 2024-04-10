@@ -35,6 +35,18 @@ class NormalizeUnitSphere(object):
         data['scale'] = scale
         return data
 
+class AddNoiseToNoisyPCL(object):
+
+        def __init__(self, noise_std_min, noise_std_max):
+            super().__init__()
+            self.noise_std_min = noise_std_min
+            self.noise_std_max = noise_std_max
+
+        def __call__(self, data):
+            noise_std = random.uniform(self.noise_std_min, self.noise_std_max)
+            data['pcl_noisy'] = data['pcl_noisy'] + torch.randn_like(data['pcl_noisy']) * noise_std
+            data['noise_std'] = noise_std
+            return data
 
 class AddNoise(object):
 
