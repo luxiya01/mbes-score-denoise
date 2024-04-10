@@ -1,0 +1,39 @@
+#dataset
+train_dataset:
+  data_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz'
+  gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
+  pings_subset: [0, 2000]
+  pings_per_patch: 2
+  noise_min: .5
+  noise_max: 5
+val_dataset:
+  data_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz'
+  gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
+  pings_subset: [1000, 1200]
+  pings_per_patch: 2
+
+#dataloader
+train_batch_size: 32
+val_batch_size: 2
+num_workers: 4
+
+#model
+dsm_sigma: 1
+score_net_hidden_dim: 32
+score_net_num_blocks: 2
+
+#optimizer
+lr: 0.001
+weight_decay: 0.
+max_grad_norm: !!float 'inf'
+
+#training
+seed: 2020
+logging: True
+log_root: './logs'
+device: 'cuda'
+max_iters: 10000
+val_freq: 200
+val_num_visualize: 4
+ld_step_size: .2
+tag: !!null

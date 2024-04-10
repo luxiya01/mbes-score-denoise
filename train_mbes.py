@@ -17,34 +17,7 @@ from models.utils import chamfer_distance_unit_sphere
 
 
 # Arguments
-parser = argparse.ArgumentParser()
-## Dataset and loader
-parser.add_argument('--train_batch_size', type=int, default=32)
-parser.add_argument('--noise_min', type=float, default=1.)
-parser.add_argument('--noise_max', type=float, default=10.)
-# parser.add_argument('--val_batch_size', type=int, default=64)
-parser.add_argument('--num_workers', type=int, default=4)
-## Model architecture
-#parser.add_argument('--frame_knn', type=int, default=32)
-parser.add_argument('--num_train_points', type=int, default=128)
-parser.add_argument('--dsm_sigma', type=float, default=1)
-parser.add_argument('--score_net_hidden_dim', type=int, default=32)
-parser.add_argument('--score_net_num_blocks', type=int, default=2)
-## Optimizer and scheduler
-parser.add_argument('--lr', type=float, default=1e-3)
-parser.add_argument('--weight_decay', type=float, default=0)
-parser.add_argument('--max_grad_norm', type=float, default=float("inf"))
-## Training
-parser.add_argument('--seed', type=int, default=2020)
-parser.add_argument('--logging', type=eval, default=True, choices=[True, False])
-parser.add_argument('--log_root', type=str, default='./logs')
-parser.add_argument('--device', type=str, default='cuda')
-parser.add_argument('--max_iters', type=int, default=10000)#1*MILLION)
-parser.add_argument('--val_freq', type=int, default=200)
-parser.add_argument('--val_num_visualize', type=int, default=4)
-parser.add_argument('--ld_step_size', type=float, default=0.2)
-parser.add_argument('--tag', type=str, default=None)
-args = parser.parse_args()
+args = load_config('configs/example.yaml')
 seed_all(args.seed)
 
 # Logging
@@ -63,19 +36,20 @@ logger.info(args)
 # Datasets and loaders
 logger.info('Loading datasets')
 train_dset = MBESPatchDataset(
-    data_path='/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz',
-    gt_path='/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy',
-    transform=Compose([AddNoise(noise_std_min=args.noise_min, noise_std_max=args.noise_max)]),
-    pings_subset=(0, 2000),
-    pings_per_patch=2,
+    data_path=args.train_dataset.data_path,
+    gt_path=args.train_dataset.gt_path,
+    transform=Compose([AddNoise(noise_std_min=args.train_dataset.noise_min,
+                                noise_std_max=args.train_dataset.noise_max)]),
+    pings_subset=args.train_dataset.pings_subset,
+    pings_per_patch=args.train_dataset.pings_per_patch,
 )
 
 val_dset = MBESPatchDataset(
-    data_path='/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz',
-    gt_path='/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy',
+    data_path=args.val_dataset.data_path,
+    gt_path=args.val_dataset.gt_path,
     transform=None,
-    pings_subset=(0, 200),
-    pings_per_patch=1,
+    pings_subset=args.val_dataset.pings_subset,
+    pings_per_patch=args.val_dataset.pings_per_patch,
 )
 
 def custom_collate(data):
