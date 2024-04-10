@@ -65,10 +65,9 @@ class MBESPatchDataset(Dataset):
             'pcl_noisy': pcl_noisy,
             'pcl_noisy_mean': pcl_noisy_mean,
         }
+        data = {k: torch.from_numpy(v).to(torch.float32) for k, v in data.items()}
 
         if self.transform is not None:
             data = self.transform(data)
-        
-        data = {k: torch.from_numpy(v).to(torch.float32) for k, v in data.items()}
 
         return data
