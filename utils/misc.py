@@ -5,6 +5,8 @@ import random
 import time
 import logging
 import logging.handlers
+import yaml
+from easydict import EasyDict as edict
 
 THOUSAND = 1000
 MILLION = 1000000
@@ -216,3 +218,11 @@ def parse_experiment_name(name):
             'resolution': num_pnts + '_' + sample_method,
             'noise': noise,
         }
+
+def load_config(path):
+    """
+    Load a yaml config file and return an EasyDict object.
+    """
+    with open(path, 'r') as f:
+        cfg = edict(yaml.safe_load(f))
+    return cfg
