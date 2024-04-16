@@ -17,7 +17,10 @@ from models.utils import chamfer_distance_unit_sphere
 
 
 # Arguments
-args = load_config('configs/example.yaml')
+parser = argparse.ArgumentParser()
+parser.add_argument('--config', type=str, default='configs/example.yaml')
+main_args = parser.parse_args()
+args = load_config(main_args.config)
 seed_all(args.seed)
 
 # Logging
@@ -79,12 +82,18 @@ def custom_collate(data):
         'pcl_length': torch.LongTensor(pcl_length),
     }
 
-train_iter = get_data_iterator(
-    DataLoader(train_dset,
-               batch_size=args.train_batch_size,
-               num_workers=args.num_workers,
-               shuffle=True,
-               collate_fn=custom_collate))
+train_loader = DataLoader(train_dset,
+    batch_size=args.train_batch_size,
+    num_workers=args.num_workers,
+    shuffle=True,
+    collate_fn=custom_collate,
+)
+val_loader = DataLoader(val_dset,
+    batch_size=args.val_batch_size,
+    num_workers=args.num_workers,
+    shuffle=False,
+    collate_fn=custom_collate,
+)
 
 # Model
 logger.info('Building model...')
@@ -96,94 +105,104 @@ optimizer = torch.optim.Adam(model.parameters(),
     lr=args.lr,
     weight_decay=args.weight_decay,
 )
-scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999)
+scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
 
 # Train, validate and test
-def train(it):
-    # Load data
-    batch = next(train_iter)
-    pcl_noisy = batch['pcl_noisy'].to(args.device)
-    pcl_clean = batch['pcl_clean'].to(args.device)
-    pcl_length = batch['pcl_length'].to(args.device)
-
-    # Reset grad and model state
-    optimizer.zero_grad()
+def train_for_one_epoch(epoch_num):
     model.train()
+    running_loss = 0.0
+    running_grad = 0.0
+    len_data_loader = len(train_loader)
+    for i, data in enumerate(train_loader):
+        pcl_noisy = data['pcl_noisy'].to(args.device)
+        pcl_clean = data['pcl_clean'].to(args.device)
+        pcl_length = data['pcl_length'].to(args.device)
 
-    # Forward
-    loss = model.get_supervised_loss(pcl_noisy=pcl_noisy, pcl_clean=pcl_clean,
-                                        pcl_length=pcl_length)
+        # Reset grad
+        optimizer.zero_grad()
 
-    # Backward and optimize
-    loss.backward()
-    orig_grad_norm = clip_grad_norm_(model.parameters(), args.max_grad_norm)
-    optimizer.step()
+        # Forward
+        loss = model.get_supervised_loss(pcl_noisy=pcl_noisy, pcl_clean=pcl_clean,
+                                         pcl_length=pcl_length)
 
-    # Logging
-    logger.info('[Train] Iter %04d | Loss %.6f | Grad %.6f' % (
-        it, loss.item(), orig_grad_norm,
-    ))
-    writer.add_scalar('train/loss', loss, it)
-    writer.add_scalar('train/lr', optimizer.param_groups[0]['lr'], it)
-    writer.add_scalar('train/grad_norm', orig_grad_norm, it)
-    writer.flush() 
+        # Backward and optimize
+        loss.backward()
+        orig_grad_norm = clip_grad_norm_(model.parameters(), args.max_grad_norm)
+
+        # Adjust learning weights
+        optimizer.step()
+
+        # Logging
+        running_loss += loss.item()
+        running_grad += orig_grad_norm
+        if i % args.log_interval == 0:
+
+            avg_loss_per_iter = running_loss / args.log_interval
+            avg_grad_per_iter = running_grad / args.log_interval
+            logger.info('[Train] Iter %04d | Loss %.6f | Grad %.6f' % (
+                i, avg_loss_per_iter, avg_grad_per_iter,
+            ))
+
+            step = epoch_num * len_data_loader + i
+            writer.add_scalar('train/loss', avg_loss_per_iter, step)
+            writer.add_scalar('train/lr', optimizer.param_groups[0]['lr'], step)
+            writer.add_scalar('train/grad_norm', avg_grad_per_iter, step)
+            writer.flush()
+            running_loss = 0.0
+            running_grad = 0.0
+
 
 def validate(it):
     all_clean = []
     all_noisy = []
     all_denoised = []
-    for i, data in enumerate(tqdm(val_dset, desc='Validate')):
-        pcl_noisy = data['pcl_noisy'].to(args.device)
-        pcl_clean = data['pcl_clean'].to(args.device)
+    all_length = []
+    all_chamfer = []
+    all_point_corr_distance = []
+    for i, data in enumerate(tqdm(val_loader, desc='Validate')):
+        pcl_noisy = data['pcl_noisy'].squeeze(dim=0).to(args.device)
+        pcl_clean = data['pcl_clean'].squeeze(dim=0).to(args.device)
+        pcl_length = data['pcl_length'].squeeze(dim=0).to(args.device)
         all_noisy.append(pcl_noisy)
         all_clean.append(pcl_clean)
+        all_length.append(pcl_length)
 
         pcl_denoised = mbes_denoise(model, pcl_noisy, ld_step_size=args.ld_step_size)
         all_denoised.append(pcl_denoised)
-    all_clean = torch.cat(all_clean, dim=0)
-    all_denoised = torch.cat(all_denoised, dim=0)
-    all_noisy = torch.cat(all_noisy, dim=0)
 
-    #writer.add_mesh('val/pcl', all_denoised[:args.val_num_visualize], global_step=it)
-    #writer.add_mesh('gt/pcl', all_clean[:args.val_num_visualize], global_step=it)
-    np.save('val_pcl.npy', all_denoised.cpu().numpy())
-    np.save('gt_pcl.npy', all_clean.cpu().numpy())
-    np.save('noisy_pcl.npy', all_noisy.cpu().numpy())
+        chamfer = pytorch3d.loss.chamfer_distance(
+            pcl_denoised.unsqueeze(0),
+            pcl_clean.unsqueeze(0),
+            batch_reduction='mean',
+            point_reduction='mean')[0].item()
+        all_chamfer.append(chamfer)
+        point_corr_distance = torch.linalg.norm(pcl_denoised - pcl_clean, dim=-1).mean().item()
+        all_point_corr_distance.append(point_corr_distance)
+    avg_chamfer = torch.mean(torch.tensor(all_chamfer))
+    avg_point_corr_dist = torch.mean(torch.tensor(all_point_corr_distance))
 
-    writer.add_mesh('val/pcl', all_denoised.reshape(1, -1, 3), global_step=it)
-    writer.add_mesh('gt/pcl', all_clean.reshape(1, -1, 3), global_step=it)
-
-
-    avg_chamfer = pytorch3d.loss.chamfer_distance(
-        all_denoised.unsqueeze(0),
-        all_clean.unsqueeze(0),
-        batch_reduction='mean',
-        point_reduction='mean')[0].item()
-    avg_diff = torch.norm(all_denoised - all_clean, dim=-1).mean().item()
-
-    logger.info('[Val] Iter %04d | CD %.6f  | Diff %.6f' % (it, avg_chamfer, avg_diff))
+    logger.info('[Val] Iter %04d | CD %.6f  | Diff %.6f' % (it, avg_chamfer, avg_point_corr_dist))
     writer.add_scalar('val/chamfer', avg_chamfer, it)
-    writer.add_scalar('val/diff', avg_diff, it)
+    writer.add_scalar('val/diff', avg_point_corr_dist, it)
 
     writer.flush()
 
     # scheduler.step(avg_chamfer)
-    return avg_chamfer, avg_diff
+    return avg_chamfer, avg_point_corr_dist
 
 # Main loop
 logger.info('Start training...')
 try:
-    for it in range(1, args.max_iters+1):
-        train(it)
-        if it % args.val_freq == 0 or it == args.max_iters:
-            cd_loss, diff_loss = validate(it)
-            opt_states = {
-                'optimizer': optimizer.state_dict(),
-                # 'scheduler': scheduler.state_dict(),
-            }
-            ckpt_mgr.save(model, args, diff_loss, opt_states, step=it)
-            # ckpt_mgr.save(model, args, 0, opt_states, step=it)
-            scheduler.step()
+    for epoch in range(args.max_epochs):
+        train_for_one_epoch(epoch)
+
+        cd_loss, diff_loss = validate(epoch)
+        opt_states = {
+            'optimizer': optimizer.state_dict(),
+            'scheduler': scheduler.state_dict(),
+        }
+        ckpt_mgr.save(model, args, diff_loss, opt_states, step=epoch)
+        scheduler.step()
 
 except KeyboardInterrupt:
     logger.info('Terminating...')
