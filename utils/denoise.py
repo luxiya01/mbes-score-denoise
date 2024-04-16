@@ -10,7 +10,7 @@ from models.utils import farthest_point_sampling
 from .transforms import NormalizeUnitSphere
 
 
-def mbes_denoise(model, pcl_noisy, ld_step_size=0.2, ld_num_steps=30, step_decay=0.95, get_traj=False):
+def mbes_denoise(model, pcl_noisy, denoise_knn=1, ld_step_size=0.2, ld_num_steps=30, step_decay=0.95, get_traj=False):
     """
     Args:
         pcl_noisy:  Input point cloud, (N, 3)
@@ -21,7 +21,8 @@ def mbes_denoise(model, pcl_noisy, ld_step_size=0.2, ld_num_steps=30, step_decay
 
     with torch.no_grad():
         model.eval()
-        pcl_denoised, traj = model.denoise_langevin_dynamics(pcl_noisy, step_size=ld_step_size, step_decay=step_decay, num_steps=ld_num_steps)
+        pcl_denoised, traj = model.denoise_langevin_dynamics(pcl_noisy, step_size=ld_step_size, step_decay=step_decay, num_steps=ld_num_steps,
+                                                             denoise_knn=denoise_knn)
         pcl_denoised = pcl_denoised.squeeze(0)
 
     if get_traj:
