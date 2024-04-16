@@ -13,8 +13,7 @@ from utils.misc import *
 from utils.transforms import *
 from utils.denoise import *
 from models.denoise_mbes import *
-from models.utils import chamfer_distance_unit_sphere
-
+import wandb
 
 # Arguments
 parser = argparse.ArgumentParser()
@@ -27,6 +26,12 @@ seed_all(args.seed)
 if args.logging:
     log_dir = get_new_log_dir(args.log_root, prefix='MBES_', postfix='_' + args.tag if args.tag is not None else '')
     logger = get_logger('train', log_dir)
+    # N.B. Wandb sync only works if wandb.init() is called before the writer is created!!!
+    wandb.init(config=args,
+            project='MBES-denoising',
+            name=args.tag,
+            )
+    wandb.tensorboard.patch(root_logdir=log_dir)
     writer = torch.utils.tensorboard.SummaryWriter(log_dir)
     ckpt_mgr = CheckpointManager(log_dir)
     log_hyperparams(writer, log_dir, args)
@@ -35,6 +40,7 @@ else:
     writer = BlackHole()
     ckpt_mgr = BlackHole()
 logger.info(args)
+logger.info('Logging to %s' % log_dir)
 
 def get_data_transform(args_dataset):
     if args_dataset.transform is None:
@@ -206,3 +212,4 @@ try:
 
 except KeyboardInterrupt:
     logger.info('Terminating...')
+    wandb.finish()
