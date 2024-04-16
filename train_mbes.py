@@ -18,8 +18,22 @@ import wandb
 # Arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, default="configs/example.yaml")
+# The following arguments are for the wandb sweep only
+parser.add_argument("--lr", type=float, required=False)
+parser.add_argument("--dsm_sigma", type=float, required=False)
+parser.add_argument("--weight_decay", type=float, required=False)
+parser.add_argument("--lr_decay", type=float, required=False)
+
 main_args = parser.parse_args()
 args = load_config(main_args.config)
+if hasattr(main_args, "lr"):
+    args.lr = main_args.lr
+if hasattr(main_args, "dsm_sigma"):
+    args.dsm_sigma = main_args.dsm_sigma
+if hasattr(main_args, "weight_decay"):
+    args.weight_decay = main_args.weight_decay
+if hasattr(main_args, "lr_decay"):
+    args.lr_decay = main_args.lr_decay
 seed_all(args.seed)
 
 # Logging
@@ -137,7 +151,7 @@ optimizer = torch.optim.Adam(
     lr=args.lr,
     weight_decay=args.weight_decay,
 )
-scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=args.lr_decay)
 
 
 # Train, validate and test
@@ -258,10 +272,10 @@ try:
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
         }
-        ckpt_mgr.save(model, args, loss, opt_states, step="last")
+        ckpt_mgr.save(model, args, loss, opt_states, name="last")
         if loss < best_val_loss:
             best_val_loss = loss
-            ckpt_mgr.save(model, args, loss, opt_states, step="best")
+            ckpt_mgr.save(model, args, loss, opt_states, name="best")
         scheduler.step()
 
 except KeyboardInterrupt:

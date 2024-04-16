@@ -68,12 +68,15 @@ class CheckpointManager(object):
                 latest_it = ckpt['iteration']
         return idx if idx >= 0 else None
 
-    def save(self, model, args, score, others=None, step=None):
+    def save(self, model, args, score, others=None, step=None, name=None):
 
         if step is None:
             fname = 'ckpt_%.6f_.pt' % float(score)
         else:
-            fname = 'ckpt_step_%d_%.6f.pt' % (int(step), float(score))
+            if step is not None:
+                fname = 'ckpt_step_%d_%.6f.pt' % (int(step), float(score))
+            elif name is not None:
+                fname = 'ckpt_%s_%.6f.pt' % (name, float(score))
         path = os.path.join(self.save_dir, fname)
 
         torch.save({

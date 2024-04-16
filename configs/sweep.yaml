@@ -1,0 +1,14 @@
+program: train_mbes.py
+method: random
+metric:
+  name: val/loss
+  goal: minimize
+parameters:
+  lr:
+    values: [.0001, .001, .01, .1]
+  dsm_sigma:
+    values: [100, 10, 1]
+  weight_decay:
+    values: [1, 0., .1]
+  lr_decay:
+    values: [0.9, 0.95, 0.99]
