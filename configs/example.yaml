@@ -3,24 +3,27 @@ train_dataset:
   data_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz'
   gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
   pings_subset: [0, 2000]
-  pings_per_patch: 2
-  noise_min: .5
-  noise_max: 5
+  pings_per_patch: 1
+  noise_min: 5
+  noise_max: 20
   transform: 'add_noise_to_clean'
 val_dataset:
   data_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz'
   gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
   pings_subset: [1000, 1200]
-  pings_per_patch: 2
-  transform: !!null
+  pings_per_patch: 1
+  #transform: !!null
+  noise_min: 5
+  noise_max: 20
+  transform: 'add_noise_to_clean'
 
 #dataloader
 train_batch_size: 32
-val_batch_size: 2
+val_batch_size: 1
 num_workers: 4
 
 #model
-dsm_sigma: 1
+dsm_sigma: 100
 score_net_hidden_dim: 32
 score_net_num_blocks: 2
 
@@ -28,14 +31,19 @@ score_net_num_blocks: 2
 lr: 0.001
 weight_decay: 0.
 max_grad_norm: !!float 'inf'
+gamma: 0.9 # gamma for ExponentialLR
 
 #training
 seed: 2020
 logging: True
 log_root: './logs'
 device: 'cuda'
-max_iters: 10000
+max_epochs: 50
+log_interval: 1
 val_freq: 200
-val_num_visualize: 4
-ld_step_size: .2
-tag: !!null
+ld_step_size: .1
+#tag: !!null
+tag: '20240416-CD-debug'
+num_train_points: 256
+frame_knn: 10
+num_clean_nbs: 5
