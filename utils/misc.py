@@ -73,7 +73,7 @@ class CheckpointManager(object):
         if step is None:
             fname = 'ckpt_%.6f_.pt' % float(score)
         else:
-            fname = 'ckpt_%.6f_%d.pt' % (float(score), int(step))
+            fname = 'ckpt_step_%d_%.6f.pt' % (int(step), float(score))
         path = os.path.join(self.save_dir, fname)
 
         torch.save({
