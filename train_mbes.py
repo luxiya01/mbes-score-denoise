@@ -243,21 +243,25 @@ def validate(it):
     writer.flush()
 
     # scheduler.step(avg_chamfer)
-    return avg_chamfer, avg_point_corr_dist
+    return loss, avg_chamfer, avg_point_corr_dist
 
 
 # Main loop
 logger.info("Start training...")
 try:
+    best_val_loss = float("inf")
     for epoch in range(args.max_epochs):
         train_for_one_epoch(epoch)
 
-        cd_loss, diff_loss = validate(epoch)
+        loss, cd_loss, point_corr_dist = validate(epoch)
         opt_states = {
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
         }
-        ckpt_mgr.save(model, args, diff_loss, opt_states, step=epoch)
+        ckpt_mgr.save(model, args, loss, opt_states, step="last")
+        if loss < best_val_loss:
+            best_val_loss = loss
+            ckpt_mgr.save(model, args, loss, opt_states, step="best")
         scheduler.step()
 
 except KeyboardInterrupt:
