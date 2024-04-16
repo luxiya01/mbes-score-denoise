@@ -4,18 +4,25 @@ train_dataset:
   gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
   pings_subset: [0, 2000]
   pings_per_patch: 1
-  noise_min: 5
-  noise_max: 20
-  transform: 'add_noise_to_clean'
+  transform:
+    noise:
+      type: 'add_noise_to_clean'
+      min: 5
+      max: 20
+    rotate: 
+      axis: 2
+      max_angle: 180
 val_dataset:
   data_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz'
   gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
   pings_subset: [1000, 1200]
   pings_per_patch: 1
   #transform: !!null
-  noise_min: 5
-  noise_max: 20
-  transform: 'add_noise_to_clean'
+  transform:
+    noise:
+      type: 'add_noise_to_clean'
+      min: 5
+      max: 20
 
 #dataloader
 train_batch_size: 32
@@ -43,7 +50,7 @@ log_interval: 1
 val_freq: 200
 ld_step_size: .1
 #tag: !!null
-tag: '20240416-CD-debug'
+tag: '20240416-wandb-test'
 num_train_points: 256
 frame_knn: 10
 num_clean_nbs: 5
