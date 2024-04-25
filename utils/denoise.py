@@ -10,7 +10,7 @@ from models.utils import farthest_point_sampling
 from .transforms import NormalizeUnitSphere
 
 
-def mbes_denoise(model, pcl_noisy, denoise_knn=1, ld_step_size=0.2, ld_num_steps=30, step_decay=0.95, get_traj=False):
+def mbes_denoise(model, pcl_noisy, denoise_knn=1, ld_step_size=0.2, ld_num_steps=10, step_decay=0.95, get_traj=False):
     """
     Args:
         pcl_noisy:  Input point cloud, (N, 3)

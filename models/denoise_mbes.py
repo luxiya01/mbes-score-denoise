@@ -88,7 +88,8 @@ class DenoiseNet(nn.Module):
 
         # Denoising score matching
         grad_pred = self.score_net(
-            x=noisy_frame_centered.view(-1, K, d),
+            #x=noisy_frame_centered.view(-1, K, d),
+            x=noisy_frames.view(-1, K, d),
             c=feat.view(-1, F),
         ).reshape(
             B, len(pnt_idx), K, d

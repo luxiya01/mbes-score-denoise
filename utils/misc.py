@@ -70,13 +70,16 @@ class CheckpointManager(object):
 
     def save(self, model, args, score, others=None, step=None, name=None):
 
-        if step is None:
-            fname = 'ckpt_%.6f_.pt' % float(score)
-        else:
-            if step is not None:
-                fname = 'ckpt_step_%d_%.6f.pt' % (int(step), float(score))
-            elif name is not None:
+        if name is not None:
+            #fname = 'ckpt_%s_%.6f.pt' % (name, float(score))
+            if name == 'best':
                 fname = 'ckpt_%s_%.6f.pt' % (name, float(score))
+            else:
+                fname = 'ckpt_%s.pt' % name
+        elif step is None:
+            fname = 'ckpt_%.6f_.pt' % float(score)
+        elif step is not None:
+            fname = 'ckpt_step_%d_%.6f.pt' % (int(step), float(score))
         path = os.path.join(self.save_dir, fname)
 
         torch.save({

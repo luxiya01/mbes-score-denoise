@@ -23,17 +23,14 @@ parser.add_argument("--lr", type=float, required=False)
 parser.add_argument("--dsm_sigma", type=float, required=False)
 parser.add_argument("--weight_decay", type=float, required=False)
 parser.add_argument("--lr_decay", type=float, required=False)
+parser.add_argument("--frame_knn", type=int, required=False)
+parser.add_argument("--num_clean_nbs", type=int, required=False)
 
 main_args = parser.parse_args()
 args = load_config(main_args.config)
-if hasattr(main_args, "lr"):
-    args.lr = main_args.lr
-if hasattr(main_args, "dsm_sigma"):
-    args.dsm_sigma = main_args.dsm_sigma
-if hasattr(main_args, "weight_decay"):
-    args.weight_decay = main_args.weight_decay
-if hasattr(main_args, "lr_decay"):
-    args.lr_decay = main_args.lr_decay
+for key, value in vars(main_args).items():
+    if value is not None:
+        setattr(args, key, value)
 seed_all(args.seed)
 
 # Logging
@@ -70,7 +67,7 @@ def get_data_transform(args_dataset):
     }
 
     if args_dataset.transform is None:
-        transforms = None
+        return None
     else:
         transforms = []
         if "noise" in args_dataset.transform:
@@ -214,7 +211,6 @@ def validate(it):
     all_length = []
     all_chamfer = []
     all_point_corr_distance = []
-    all_loss = []
     for i, data in enumerate(tqdm(val_loader, desc="Validate")):
         pcl_noisy = data["pcl_noisy"].squeeze(dim=0).to(args.device)
         pcl_clean = data["pcl_clean"].squeeze(dim=0).to(args.device)
@@ -223,12 +219,7 @@ def validate(it):
         all_clean.append(pcl_clean)
         all_length.append(pcl_length)
 
-        loss = model.get_supervised_loss(
-            pcl_noisy.unsqueeze(0), pcl_clean.unsqueeze(0), pcl_length.unsqueeze(0)
-        )
-        all_loss.append(loss.item())
-
-        pcl_denoised = mbes_denoise(model, pcl_noisy, ld_step_size=args.ld_step_size)
+        pcl_denoised = mbes_denoise(model, pcl_noisy, ld_step_size=args.ld_step_size, denoise_knn=args.num_clean_nbs)
         all_denoised.append(pcl_denoised)
 
         chamfer = pytorch3d.loss.chamfer_distance(
@@ -242,40 +233,38 @@ def validate(it):
             torch.linalg.norm(pcl_denoised - pcl_clean, dim=-1).mean().item()
         )
         all_point_corr_distance.append(point_corr_distance)
-    avg_loss = torch.mean(torch.tensor(all_loss))
     avg_chamfer = torch.mean(torch.tensor(all_chamfer))
     avg_point_corr_dist = torch.mean(torch.tensor(all_point_corr_distance))
 
     logger.info(
-        "[Val] Iter %04d | Loss %.6f  | CD %.6f  | Diff %.6f"
-        % (it, avg_loss, avg_chamfer, avg_point_corr_dist)
+        "[Val] Iter %04d | CD %.6f  | Diff %.6f"
+        % (it, avg_chamfer, avg_point_corr_dist)
     )
-    writer.add_scalar("val/loss", avg_loss, it)
     writer.add_scalar("val/chamfer", avg_chamfer, it)
     writer.add_scalar("val/diff", avg_point_corr_dist, it)
 
     writer.flush()
 
     # scheduler.step(avg_chamfer)
-    return loss, avg_chamfer, avg_point_corr_dist
+    return avg_chamfer, avg_point_corr_dist
 
 
 # Main loop
 logger.info("Start training...")
 try:
-    best_val_loss = float("inf")
+    best_val_point_corr_dist = float("inf")
     for epoch in range(args.max_epochs):
         train_for_one_epoch(epoch)
 
-        loss, cd_loss, point_corr_dist = validate(epoch)
+        cd_loss, point_corr_dist = validate(epoch)
         opt_states = {
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
         }
-        ckpt_mgr.save(model, args, loss, opt_states, name="last")
-        if loss < best_val_loss:
-            best_val_loss = loss
-            ckpt_mgr.save(model, args, loss, opt_states, name="best")
+        ckpt_mgr.save(model, args, point_corr_dist, opt_states, name="last")
+        if point_corr_dist < best_val_point_corr_dist:
+            best_val_point_corr_dist = point_corr_dist
+            ckpt_mgr.save(model, args, point_corr_dist, opt_states, name="best")
         scheduler.step()
 
 except KeyboardInterrupt:

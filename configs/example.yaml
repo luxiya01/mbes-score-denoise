@@ -1,36 +1,40 @@
 #dataset
 train_dataset:
-  data_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz'
-  gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
-  pings_subset: [0, 2000]
+  data_path: '/proj/berzelius-2023-154/users/x_lling/score-denoise/data/mbes-denoising/EM2040-0014-l04s01-20190618-175553.xyz.npz'
+  gt_path: '/proj/berzelius-2023-154/users/x_lling/score-denoise/data/mbes-denoising/EM2040-0014-l04s01-20190618-175553_draping_gt_0.5m-tx-only-yaw-meridian-convergence-zoffset-+.361.npy'
+  pings_subset: [200, 4000]
   pings_per_patch: 1
-  transform:
-    noise:
-      type: 'add_noise_to_clean'
-      min: 5
-      max: 20
-    rotate: 
-      axis: 2
-      max_angle: 180
+  transform: !!null
+  # transform:
+  #   noise:
+  #     type: 'add_noise_to_clean'
+  #     min: .5
+  #     max: 2
+  #   rotate: 
+  #     axis: 2
+  #     max_angle: 180
 val_dataset:
-  data_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data.npz'
-  gt_path: '/home/li/mbes-cleaning/data-dotson-east-unfiltered/merged/all_data_draping_2.36mesh_gt_5.0m.npy'
-  pings_subset: [1000, 1200]
+  data_path: '/proj/berzelius-2023-154/users/x_lling/score-denoise/data/mbes-denoising/EM2040-0014-l04s01-20190618-175553.xyz.npz'
+  gt_path: '/proj/berzelius-2023-154/users/x_lling/score-denoise/data/mbes-denoising/EM2040-0014-l04s01-20190618-175553_draping_gt_0.5m-tx-only-yaw-meridian-convergence-zoffset-+.361.npy'
+  pings_subset: [2000, 2100]
   pings_per_patch: 1
-  #transform: !!null
-  transform:
-    noise:
-      type: 'add_noise_to_clean'
-      min: 5
-      max: 20
+  transform: !!null
+  # transform:
+  #   noise:
+  #     type: 'add_noise_to_noisy'
+  #     min: .5
+  #     max: 5
+  #   rotate: 
+  #     axis: 2
+  #     max_angle: 180
 
 #dataloader
-train_batch_size: 32
+train_batch_size: 1024
 val_batch_size: 1
 num_workers: 4
 
 #model
-dsm_sigma: 100
+dsm_sigma: .1
 score_net_hidden_dim: 32
 score_net_num_blocks: 2
 
@@ -38,7 +42,7 @@ score_net_num_blocks: 2
 lr: 0.001
 weight_decay: 0.
 max_grad_norm: !!float 'inf'
-gamma: 0.9 # gamma for ExponentialLR
+lr_decay: 0.9 # gamma for ExponentialLR
 
 #training
 seed: 2020
@@ -50,7 +54,7 @@ log_interval: 1
 val_freq: 200
 ld_step_size: .1
 #tag: !!null
-tag: '20240416-wandb-test'
+tag: '20240423-gullmarsfjord-train=val-notransforms-knn=30-clean=1-no-centering'
 num_train_points: 256
-frame_knn: 10
-num_clean_nbs: 5
+frame_knn: 30
+num_clean_nbs: 1
