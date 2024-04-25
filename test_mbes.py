@@ -63,19 +63,20 @@ model.load_state_dict(ckpt['state_dict'])
 def transform_input(mbes_item):
     pcl_noisy = mbes_item['pcl_clean']
     pcl_noisy, center, scale = NormalizeUnitSphere.normalize(pcl_noisy)
-    yield {
+    return {
         'pcl_noisy': pcl_noisy,
         'name': mbes_item['name'],
         'center': center,
         'scale': scale
     }
-data = MBESDataset(root=input_dir, split='test', transform=None)
+data = MBESDataset(root=input_dir, split='tmp-test', transform=None)
 
 # Denoise
 ld_step_size = args.ld_step_size if args.ld_step_size is not None else ckpt['args'].ld_step_size
 logger.info('ld_step_size = %.8f' % ld_step_size)
 for i, data in enumerate(tqdm(data, desc='Testing')):
     logger.info(data['name'])
+    data = transform_input(data)
     pcl_noisy = data['pcl_noisy'].to(args.device)
     with torch.no_grad():
         model.eval()
