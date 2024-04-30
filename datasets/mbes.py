@@ -8,12 +8,12 @@ from torch.utils.data import Dataset
 
 class MBESDataset(Dataset):
 
-    def __init__(self, raw_data_root, gt_root, transform=None):
-        self.raw_data_root = raw_data_root
-        self.gt_root = gt_root
+    def __init__(self, raw_data_root, gt_root, split, transform=None):
+        self.raw_data_root = os.path.join(raw_data_root, split)
+        self.gt_root = os.path.join(gt_root, split)
 
-        self.raw_data_files = sorted([os.path.join(raw_data_root, f) for f in os.listdir(raw_data_root)])
-        self.gt_data_files = sorted([os.path.join(gt_root, f) for f in os.listdir(gt_root)])
+        self.raw_data_files = sorted([os.path.join(self.raw_data_root, f) for f in os.listdir(self.raw_data_root)])
+        self.gt_data_files = sorted([os.path.join(self.gt_root, f) for f in os.listdir(self.gt_root)])
         assert len(self.raw_data_files) == len(self.gt_data_files)
 
         self.transform = transform
@@ -39,7 +39,7 @@ class MBESDataset(Dataset):
         pcl_gt = self._load_gt_data(idx)
         data = {
             'pcl_clean': torch.from_numpy(pcl_gt).clone().float(),
-            'pcl_noisy': torch.from_numpy(pcl_raw).clone().float(),
+            'pcl_raw': torch.from_numpy(pcl_raw).clone().float(),
             'name': idx,
         }
 
