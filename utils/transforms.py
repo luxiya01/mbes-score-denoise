@@ -6,6 +6,42 @@ import torch
 import numpy as np
 from torchvision.transforms import Compose
 
+class NormalizeZ(object):
+
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def normalize(pcl, center=None, scale_xy=None, scale_z=None):
+        """
+        Args:
+            pcl:  The point cloud to be normalized, (N, 3)
+        """
+        if center is None:
+            p_max = pcl.max(dim=0, keepdim=True)[0]
+            p_min = pcl.min(dim=0, keepdim=True)[0]
+            center = (p_max + p_min) / 2
+        pcl = pcl - center
+        if scale_xy is None and scale_z is None:
+            scale_xy = (pcl[:, :2] ** 2).sum(dim=1, keepdim=True).sqrt().max(dim=0, keepdim=True)[0]
+            scale_z = pcl[:, 2].abs().max(dim=0, keepdim=True)[0]
+        pcl[:, :2] /= scale_xy
+        pcl[:, 2] /= scale_z
+        return pcl, center, scale_xy, scale_z
+
+    def __call__(self, data):
+        """Normalize the noisy point cloud to the unit sphere,
+        and use the same center and scale to normalize the clean
+        point cloud.
+        """
+        data['pcl_noisy'], center, scale_xy, scale_z = self.normalize(data['pcl_raw'])
+        data['center'] = center
+        data['scale_xy'] = scale_xy
+        data['scale_z'] = scale_z
+        data['pcl_clean'], _, _, _ = self.normalize(data['pcl_clean'], center, scale_xy, scale_z)
+        return data
+
+
 class NormalizeNoisyToUnitSphere(object):
 
     def __init__(self):
@@ -67,6 +103,20 @@ class NormalizeUnitSphere(object):
         data['scale'] = scale
         return data
 
+class AddNoiseToZ(object):
+
+    def __init__(self, noise_std_min, noise_std_max):
+        super().__init__()
+        self.noise_std_min = noise_std_min
+        self.noise_std_max = noise_std_max
+
+    def __call__(self, data):
+        noise_std = random.uniform(self.noise_std_min, self.noise_std_max)
+        N, _ = data['pcl_noisy'].shape
+        noise = torch.randn(N) * noise_std
+        data['pcl_noisy'][..., 2] += noise
+        data['noise_std'] = noise_std
+        return data
 
 class AddNoise(object):
 
