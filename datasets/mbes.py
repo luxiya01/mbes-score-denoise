@@ -29,18 +29,20 @@ class MBESDataset(Dataset):
         pcl = data['data']
         valid_mask = data['valid_mask']
         pcl = pcl[valid_mask]
-        return pcl
+        return pcl, valid_mask
 
     def __len__(self):
         return len(self.raw_data_files)
 
     def __getitem__(self, idx):
         pcl_raw = self._load_raw_data(idx)
-        pcl_gt = self._load_gt_data(idx)
+        pcl_gt, valid_mask = self._load_gt_data(idx)
+
         data = {
             'pcl_clean': torch.from_numpy(pcl_gt).clone().float(),
             'pcl_raw': torch.from_numpy(pcl_raw).clone().float(),
             'name': idx,
+            'valid_mask': torch.from_numpy(valid_mask).clone().bool(),
         }
 
         if self.transform is not None:
