@@ -18,21 +18,26 @@ def patch_based_denoise(model, pcl_noisy, ld_step_size=0.2, ld_num_steps=30, pat
     assert pcl_noisy.dim() == 2, 'The shape of input point cloud must be (N, 3).'
     N, d = pcl_noisy.size()
     pcl_noisy = pcl_noisy.unsqueeze(0)  # (1, N, 3)
-    seed_pnts, _ = farthest_point_sampling(pcl_noisy, int(seed_k * N / patch_size))
-    _, _, patches = pytorch3d.ops.knn_points(seed_pnts, pcl_noisy, K=patch_size, return_nn=True)
-    patches = patches[0]    # (N, K, 3)
+    # seed_pnts, _ = farthest_point_sampling(pcl_noisy, int(seed_k * N / patch_size))
+    # _, _, patches = pytorch3d.ops.knn_points(seed_pnts, pcl_noisy, K=patch_size, return_nn=True)
+    # patches = patches[0]    # (N, K, 3)
+    patches = pcl_noisy
 
     with torch.no_grad():
         model.eval()
         patches_denoised, traj = model.denoise_langevin_dynamics(patches, step_size=ld_step_size, denoise_knn=denoise_knn, step_decay=step_decay, num_steps=ld_num_steps)
 
-    pcl_denoised, fps_idx = farthest_point_sampling(patches_denoised.view(1, -1, d), N)
-    pcl_denoised = pcl_denoised[0]
-    fps_idx = fps_idx[0]
+    # pcl_denoised, fps_idx = farthest_point_sampling(patches_denoised.view(1, -1, d), N)
+    # pcl_denoised = pcl_denoised[0]
+    # fps_idx = fps_idx[0]
+    pcl_denoised = patches_denoised.reshape(-1, 3)
+    print(f'pcl_denoised: {pcl_denoised.size()}')
 
     if get_traj:
         for i in range(len(traj)):
-            traj[i] = traj[i].view(-1, d)[fps_idx, :]
+            # traj[i]
+            # traj[i] = traj[i].view(-1, d)[fps_idx, :]
+            traj[i] = traj[i].view(-1, d)
         return pcl_denoised, traj
     else:
         return pcl_denoised
