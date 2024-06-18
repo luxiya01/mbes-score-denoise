@@ -186,3 +186,21 @@ def hausdorff_distance_unit_sphere(gen, ref):
     dists_hausdorff = torch.max(torch.cat([dists_ab, dists_ba], dim=1), dim=1)[0]
 
     return dists_hausdorff
+
+def compute_mbes_metrics(gen, ref, valid_mask, denormalize=True, scale_xy=None, scale_z=None, center=None):
+    if denormalize:
+        for pcl in [gen, ref]:
+            pcl *= scale_z
+            pcl[:, :2] *= scale_xy
+            pcl += center
+
+    cd = pytorch3d.loss.chamfer_distance(gen.unsqueeze(0),
+                                         ref.unsqueeze(0),
+                                         point_reduction='mean')[0].item()
+
+    gen_masked = gen.view(-1, 400, 3)[valid_mask]
+    ref = ref.reshape(gen_masked.shape)
+    z_diff = (gen_masked[:, 2] - ref[:, 2]).mean().item()
+    z_abs_diff = (gen_masked[:, 2] - ref[:, 2]).abs().mean().item()
+    z_rmse = torch.sqrt((gen_masked[:, 2] - ref[:, 2]).pow(2).mean()).item()
+    return {'cd': cd, 'z_diff': z_diff, 'z_abs_diff': z_abs_diff, 'z_rmse': z_rmse}
