@@ -12,6 +12,8 @@ from utils.transforms import *
 from utils.denoise import *
 from models.denoise import *
 from datasets.mbes import MBESDataset
+from models.utils import compute_mbes_metrics
+from collections import defaultdict
 
 
 # Arguments
@@ -25,6 +27,8 @@ parser.add_argument('--train_batch_size', type=int, default=32)
 # parser.add_argument('--val_batch_size', type=int, default=64)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--aug_rotate', type=eval, default=True, choices=[True, False])
+#TODO remove this arg
+parser.add_argument('--num_val_samples', type=int, default=50)
 ## Model architecture
 parser.add_argument('--supervised', type=eval, default=True, choices=[True, False])
 parser.add_argument('--frame_knn', type=int, default=32)
@@ -50,6 +54,8 @@ parser.add_argument('--val_num_visualize', type=int, default=4)
 parser.add_argument('--val_noise', type=float, default=0.015)
 parser.add_argument('--ld_step_size', type=float, default=0.2)
 parser.add_argument('--tag', type=str, default=None)
+## Denoising
+parser.add_argument('--denoise_knn', type=int, default=4)
 args = parser.parse_args()
 seed_all(args.seed)
 
@@ -72,9 +78,10 @@ logger.info(args)
 logger.info('Loading datasets')
 
 train_dset = MBESDataset(
+    use_ping_idx=False,
     raw_data_root=args.raw_data_root,
     gt_root=args.gt_root,
-    split='tmp',
+    split='train_data_part1.npz',
     transform=Compose([NormalizeZ(),
                     #    AddNoiseToZ(noise_std_max=args.noise_max,
                     #                noise_std_min=args.noise_min),
@@ -85,16 +92,18 @@ train_dset = MBESDataset(
 )
 print(f"train_dset: {len(train_dset)}")
 val_dset = MBESDataset(
+    use_ping_idx=False,
     raw_data_root=args.raw_data_root,
     gt_root=args.gt_root,
-    split='tmp-val',
+    split='train_data_part2.npz',
     transform=Compose([NormalizeZ()]),
     # transform=standard_train_transforms(noise_std_max=args.noise_max,
     #                                     noise_std_min=args.noise_min,
     #                                     rotate=args.aug_rotate)
 )
 print(f"val_dset: {len(val_dset)}")
-train_iter = get_data_iterator(DataLoader(train_dset, batch_size=args.train_batch_size, num_workers=args.num_workers, shuffle=True))
+train_iter = get_data_iterator(DataLoader(train_dset, batch_size=args.train_batch_size, num_workers=args.num_workers,
+                                          shuffle=False))
 
 # Model
 logger.info('Building model...')
@@ -111,7 +120,7 @@ optimizer = torch.optim.Adam(model.parameters(),
 def train(it):
     # Load data
     batch = next(train_iter)
-    print(f"pcl noisy orig shape: {batch['pcl_noisy'].shape}")
+    # print(f"pcl noisy orig shape: {batch['pcl_noisy'].shape}")
     pcl_noisy = batch['pcl_noisy'].reshape(args.train_batch_size, -1, 3).to(args.device)
     pcl_clean = batch['pcl_clean'].reshape(args.train_batch_size, -1, 3).to(args.device)
 
@@ -140,24 +149,45 @@ def train(it):
     writer.flush() 
 
 def validate(it):
-    cd = []
+    all_metrics_denorm = defaultdict(list)
+    all_metrics_norm = defaultdict(list)
     for i, data in enumerate(tqdm(val_dset, desc='Validate')):
+
+        #TODO: remove this logic
+        if i > args.num_val_samples:
+            break
+
         pcl_noisy = data['pcl_noisy'].reshape(-1, 3).to(args.device)
         pcl_clean = data['pcl_clean'].reshape(-1, 3).to(args.device)
-        pcl_denoised = patch_based_denoise(model, pcl_noisy, ld_step_size=args.ld_step_size)
+        valid_mask = data['valid_mask'].to(args.device)
+        scale_xy = data['scale_xy'].to(args.device)
+        scale_z = data['scale_z'].to(args.device)
+        center = data['center'].to(args.device)
 
-        cd.append(pytorch3d.loss.chamfer_distance(pcl_denoised.unsqueeze(0),
-                                                  pcl_clean.unsqueeze(0),
-                                                  batch_reduction='mean')[0].item())
+        pcl_denoised = patch_based_denoise(model, pcl_noisy, ld_step_size=args.ld_step_size,
+        denoise_knn=args.denoise_knn)
 
-    avg_chamfer = np.mean(cd)
+        metrics_norm = compute_mbes_metrics(pcl_denoised, pcl_clean, valid_mask=valid_mask, denormalize=False)
+        metrics_denorm = compute_mbes_metrics(pcl_denoised, pcl_clean, valid_mask=valid_mask, denormalize=True,
+                                              scale_xy=scale_xy, scale_z=scale_z, center=center)
+        for k, v in metrics_denorm.items():
+            all_metrics_denorm[k].append(v)
+            all_metrics_norm[k].append(metrics_norm[k])
 
-    logger.info('[Val] Iter %04d | CD %.6f  ' % (it, avg_chamfer))
-    writer.add_scalar('val/chamfer', avg_chamfer, it)
+    avg_metrics = {f'{k}_denorm': np.mean(v) for k, v in all_metrics_denorm.items()}
+    avg_metrics.update({f'{k}_norm': np.mean(v) for k, v in all_metrics_norm.items()})
+
+    # logger.info('[Val] Iter %04d | CD %.6f  ' % (it, avg_chamfer))
+    # writer.add_scalar('val/chamfer', avg_chamfer, it)
+    logger.info(f'[Val] Iter {it:4d} Norm   | CD {avg_metrics["cd_norm"]:.6f} | |z| {avg_metrics["z_abs_diff_norm"]:.6f} | z_rmse {avg_metrics["z_rmse_norm"]:.6f}')
+    logger.info(f'[Val] Iter {it:4d} Denorm | CD {avg_metrics["cd_denorm"]:.6f} | |z| {avg_metrics["z_abs_diff_denorm"]:.6f} | z_rmse {avg_metrics["z_rmse_denorm"]:.6f}')
+    for k, v in avg_metrics.items():
+        writer.add_scalar(f'val/{k}', v, it)
     writer.flush()
 
     # scheduler.step(avg_chamfer)
-    return avg_chamfer
+    # return avg_chamfer
+    return avg_metrics['z_abs_diff_denorm']
 
 # Main loop
 logger.info('Start training...')

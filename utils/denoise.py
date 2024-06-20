@@ -31,7 +31,7 @@ def patch_based_denoise(model, pcl_noisy, ld_step_size=0.2, ld_num_steps=30, pat
     # pcl_denoised = pcl_denoised[0]
     # fps_idx = fps_idx[0]
     pcl_denoised = patches_denoised.reshape(-1, 3)
-    print(f'pcl_denoised: {pcl_denoised.size()}')
+    # print(f'pcl_denoised: {pcl_denoised.size()}')
 
     if get_traj:
         for i in range(len(traj)):

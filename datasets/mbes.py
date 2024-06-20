@@ -8,25 +8,41 @@ from torch.utils.data import Dataset
 
 class MBESDataset(Dataset):
 
-    def __init__(self, raw_data_root, gt_root, split, transform=None):
+    def __init__(self, raw_data_root, gt_root, split, transform=None, use_ping_idx=False):
         self.raw_data_root = os.path.join(raw_data_root, split)
         self.gt_root = os.path.join(gt_root, split)
 
         self.raw_data_files = sorted([os.path.join(self.raw_data_root, f) for f in os.listdir(self.raw_data_root)])
         self.gt_data_files = sorted([os.path.join(self.gt_root, f) for f in os.listdir(self.gt_root)])
+        print(f'len raw_data_files: {len(self.raw_data_files)}')
+        print(f'len gt_data_files: {len(self.gt_data_files)}')
         assert len(self.raw_data_files) == len(self.gt_data_files)
 
         self.transform = transform
+        self.use_ping_idx = use_ping_idx
+
+    def _replace_xy_with_ping_beam_idx(self, pcl):
+        num_pings, num_beams = pcl.shape[:2]
+        ping_idx = np.arange(num_pings).reshape(-1, 1).repeat(num_beams, axis=1)
+        beam_idx = np.arange(num_beams).reshape(1, -1).repeat(num_pings, axis=0)
+        pcl[:, :, 0] = ping_idx
+        pcl[:, :, 1] = beam_idx
+        return pcl
 
     def _load_raw_data(self, idx):
         data = np.load(self.raw_data_files[idx], allow_pickle=True)
-        pcl = np.stack([data["X"], data["Y"], data["Z_relative"]], axis=-1).reshape(-1, 3)
+        pcl = np.stack([data["X"], data["Y"], data["Z_relative"]], axis=-1)
+        if self.use_ping_idx:
+            pcl = self._replace_xy_with_ping_beam_idx(pcl)
+        pcl = pcl.reshape(-1, 3)
         return pcl
 
     def _load_gt_data(self, idx):
         data = np.load(self.gt_data_files[idx], allow_pickle=True)
         # filter out invalid draping points
         pcl = data['data']
+        if self.use_ping_idx:
+            pcl = self._replace_xy_with_ping_beam_idx(pcl)
         valid_mask = data['valid_mask']
         pcl = pcl[valid_mask]
         return pcl, valid_mask
