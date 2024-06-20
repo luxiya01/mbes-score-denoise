@@ -35,7 +35,10 @@ class MBESDataset(Dataset):
         if self.use_ping_idx:
             pcl = self._replace_xy_with_ping_beam_idx(pcl)
         pcl = pcl.reshape(-1, 3)
-        return pcl
+
+        # Load the rejection mask and record the indices of rejected points, indexed as 1D array
+        rejected = np.argwhere(data["rejected"].flatten(), ).flatten()
+        return pcl, rejected
 
     def _load_gt_data(self, idx):
         data = np.load(self.gt_data_files[idx], allow_pickle=True)
@@ -51,7 +54,7 @@ class MBESDataset(Dataset):
         return len(self.raw_data_files)
 
     def __getitem__(self, idx):
-        pcl_raw = self._load_raw_data(idx)
+        pcl_raw, rejected = self._load_raw_data(idx)
         pcl_gt, valid_mask = self._load_gt_data(idx)
 
         data = {
@@ -59,6 +62,7 @@ class MBESDataset(Dataset):
             'pcl_raw': torch.from_numpy(pcl_raw).clone().float(),
             'name': idx,
             'valid_mask': torch.from_numpy(valid_mask).clone().bool(),
+            'rejected': torch.from_numpy(rejected).clone().long(),
         }
 
         if self.transform is not None:

@@ -7,9 +7,18 @@ from .feature import FeatureExtraction
 from .score import ScoreNet
 
 
-def get_random_indices(n, m):
+def get_random_indices(n, m, excluded_idx=None):
     assert m < n
-    return np.random.permutation(n)[:m]
+    if excluded_idx is None:
+        return np.random.permutation(n)[:m]
+
+    # Exclude some indices
+    # If remaining indices are less than m, we need to sample with replacement
+    excluded_idx = excluded_idx.cpu().numpy()
+    all_indices = np.arange(n)
+    indices = np.setdiff1d(all_indices, excluded_idx)
+    replace = len(indices) < m
+    return np.random.choice(indices, m, replace=replace)
 
 
 class DenoiseNet(nn.Module):
@@ -34,18 +43,21 @@ class DenoiseNet(nn.Module):
             num_blocks=args.score_net_num_blocks,
         )
 
-    def get_supervised_loss(self, pcl_noisy, pcl_clean):
+    def get_supervised_loss(self, pcl_noisy, pcl_clean, rejected=None):
         """
         Denoising score matching.
         Args:
             pcl_noisy:  Noisy point clouds, (B, N, 3).
             pcl_clean:  Clean point clouds, (B, M, 3). Usually, M is slightly greater than N.
+            rejected:   Indices of rejected points in the noisy point clouds, (B, N_rejected).
         """
         B, N_noisy, N_clean, d = pcl_noisy.size(0), pcl_noisy.size(1), pcl_clean.size(1), pcl_noisy.size(2)
         n = self.num_train_points
         K = self.frame_knn
         C = self.num_clean_nbs
-        pnt_idx = get_random_indices(N_noisy, self.num_train_points)
+        pnt_idx = get_random_indices(N_noisy, self.num_train_points, excluded_idx=rejected)
+
+        # Avoid sampling outlier points
 
         # Feature extraction
         feat = self.feature_net(pcl_noisy)  # (B, N, F)

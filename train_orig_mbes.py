@@ -28,7 +28,7 @@ parser.add_argument('--train_batch_size', type=int, default=32)
 parser.add_argument('--num_workers', type=int, default=4)
 parser.add_argument('--aug_rotate', type=eval, default=True, choices=[True, False])
 #TODO remove this arg
-parser.add_argument('--num_val_samples', type=int, default=50)
+parser.add_argument('--num_val_samples', type=int, default=10)
 ## Model architecture
 parser.add_argument('--supervised', type=eval, default=True, choices=[True, False])
 parser.add_argument('--frame_knn', type=int, default=32)
@@ -83,11 +83,6 @@ train_dset = MBESDataset(
     gt_root=args.gt_root,
     split='train_data_part1.npz',
     transform=Compose([NormalizeZ(),
-                    #    AddNoiseToZ(noise_std_max=args.noise_max,
-                    #                noise_std_min=args.noise_min),
-    # transform=standard_train_transforms(noise_std_max=args.noise_max,
-    #                                     noise_std_min=args.noise_min,
-    #                                     rotate=args.aug_rotate)
     ])
 )
 print(f"train_dset: {len(train_dset)}")
@@ -97,9 +92,6 @@ val_dset = MBESDataset(
     gt_root=args.gt_root,
     split='train_data_part2.npz',
     transform=Compose([NormalizeZ()]),
-    # transform=standard_train_transforms(noise_std_max=args.noise_max,
-    #                                     noise_std_min=args.noise_min,
-    #                                     rotate=args.aug_rotate)
 )
 print(f"val_dset: {len(val_dset)}")
 train_iter = get_data_iterator(DataLoader(train_dset, batch_size=args.train_batch_size, num_workers=args.num_workers,
@@ -123,6 +115,7 @@ def train(it):
     # print(f"pcl noisy orig shape: {batch['pcl_noisy'].shape}")
     pcl_noisy = batch['pcl_noisy'].reshape(args.train_batch_size, -1, 3).to(args.device)
     pcl_clean = batch['pcl_clean'].reshape(args.train_batch_size, -1, 3).to(args.device)
+    rejected = batch['rejected'].reshape(args.train_batch_size, -1).to(args.device)
 
     # Reset grad and model state
     optimizer.zero_grad()
@@ -130,7 +123,8 @@ def train(it):
 
     # Forward
     if args.supervised:
-        loss = model.get_supervised_loss(pcl_noisy=pcl_noisy, pcl_clean=pcl_clean)
+        loss = model.get_supervised_loss(pcl_noisy=pcl_noisy, pcl_clean=pcl_clean,
+                                         rejected=rejected)
     else:
         loss = model.get_selfsupervised_loss(pcl_noisy=pcl_noisy)
 
