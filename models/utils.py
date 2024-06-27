@@ -187,7 +187,7 @@ def hausdorff_distance_unit_sphere(gen, ref):
 
     return dists_hausdorff
 
-def compute_mbes_metrics(gen, ref, valid_mask, denormalize=True, scale_xy=None, scale_z=None, center=None):
+def compute_mbes_denoising_metrics(gen, ref, valid_mask, denormalize=True, scale_xy=None, scale_z=None, center=None):
     if denormalize:
         for pcl in [gen, ref]:
             pcl *= scale_z
@@ -204,3 +204,30 @@ def compute_mbes_metrics(gen, ref, valid_mask, denormalize=True, scale_xy=None, 
     z_abs_diff = (gen_masked[:, 2] - ref[:, 2]).abs().mean().item()
     z_rmse = torch.sqrt((gen_masked[:, 2] - ref[:, 2]).pow(2).mean()).item()
     return {'cd': cd, 'z_diff': z_diff, 'z_abs_diff': z_abs_diff, 'z_rmse': z_rmse}
+
+def compute_outliers_iqr(grad, thresh=5.):
+    quantiles = torch.quantile(grad, torch.tensor([.25, .5, .75]).to(grad.device))
+    q1, median, q3 = quantiles
+    iqr = q3 - q1
+    # higher = q3 + 1.5 * iqr
+    # lower = q1 - 1.5 * iqr
+    higher = q3 + thresh * iqr
+    lower = q1 - thresh * iqr
+    print(f'q1: {q1}, median: {median}, q3: {q3}, iqr: {iqr}, lower: {lower}, higher: {higher}')
+    return torch.nonzero(torch.logical_or(grad > higher, grad < lower)).flatten()
+
+def compute_mbes_outlier_rejection_metrics(gradients, gt_rejected):
+    grad_median = torch.median(gradients).item()
+    # get indices where abs(gradients - grad_median) > std(gradients)*1.
+    # grad_outliers = torch.nonzero(torch.abs(gradients - grad_median) > torch.std(gradients)*1.).flatten()
+    grad_outliers = compute_outliers_iqr(gradients)
+    print(f'Number of outliers: {len(grad_outliers)}')
+
+    # compute TP, FP, TN, FN using pred=grad_outliers and gt=gt_rejected
+    def isin(a, b):
+        return torch.sum(a[:, None] == b[None, :], dim=1) > 0
+    TP = len(torch.nonzero(isin(grad_outliers, gt_rejected)).flatten())
+    FP = len(grad_outliers) - TP
+    FN = len(gt_rejected) - TP
+    TN = gradients.flatten().shape[0] - (TP + FP + FN)
+    return {'TP': TP, 'FP': FP, 'TN': TN, 'FN': FN}
