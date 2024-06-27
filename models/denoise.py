@@ -55,9 +55,8 @@ class DenoiseNet(nn.Module):
         n = self.num_train_points
         K = self.frame_knn
         C = self.num_clean_nbs
-        pnt_idx = get_random_indices(N_noisy, self.num_train_points, excluded_idx=rejected)
-
         # Avoid sampling outlier points
+        pnt_idx = get_random_indices(N_noisy, self.num_train_points, excluded_idx=rejected)
 
         # Feature extraction
         feat = self.feature_net(pcl_noisy)  # (B, N, F)
@@ -182,6 +181,7 @@ class DenoiseNet(nn.Module):
             traj = [pcl_noisy.clone().cpu()]
             pcl_next = pcl_noisy.clone()
 
+            init_grad = None
             for step in range(num_steps):
                 # Construct local frames
                 # _, nn_idx, frames = pytorch3d.ops.knn_points(pcl_noisy, pcl_next, K=denoise_knn, return_nn=True)   
@@ -210,6 +210,8 @@ class DenoiseNet(nn.Module):
                 # acc_grads_mean = grad_pred.mean(dim=2) # (B, N, 1)
                 acc_grads_median = grad_pred.median(dim=2).values
                 acc_grads = acc_grads_median
+                if init_grad is None:
+                    init_grad = acc_grads.clone()
 
                 # acc_grads = torch.zeros_like(pcl_noisy)
                 # B, N, _ = pcl_noisy.size()
@@ -227,4 +229,4 @@ class DenoiseNet(nn.Module):
                 traj.append(pcl_next.clone().cpu())
                 # print(s)
             
-        return pcl_next, traj
+        return pcl_next, traj, init_grad
