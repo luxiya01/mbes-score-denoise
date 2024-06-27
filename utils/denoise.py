@@ -25,7 +25,7 @@ def patch_based_denoise(model, pcl_noisy, ld_step_size=0.2, ld_num_steps=30, pat
 
     with torch.no_grad():
         model.eval()
-        patches_denoised, traj = model.denoise_langevin_dynamics(patches, step_size=ld_step_size, denoise_knn=denoise_knn, step_decay=step_decay, num_steps=ld_num_steps)
+        patches_denoised, traj, init_grad = model.denoise_langevin_dynamics(patches, step_size=ld_step_size, denoise_knn=denoise_knn, step_decay=step_decay, num_steps=ld_num_steps)
 
     # pcl_denoised, fps_idx = farthest_point_sampling(patches_denoised.view(1, -1, d), N)
     # pcl_denoised = pcl_denoised[0]
@@ -38,9 +38,9 @@ def patch_based_denoise(model, pcl_noisy, ld_step_size=0.2, ld_num_steps=30, pat
             # traj[i]
             # traj[i] = traj[i].view(-1, d)[fps_idx, :]
             traj[i] = traj[i].view(-1, d)
-        return pcl_denoised, traj
+        return pcl_denoised, traj, init_grad
     else:
-        return pcl_denoised
+        return pcl_denoised, init_grad
 
 
 def denoise_large_pointcloud(model, pcl, cluster_size, seed=0):
