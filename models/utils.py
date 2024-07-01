@@ -213,15 +213,15 @@ def compute_outliers_iqr(grad, thresh=5.):
     # lower = q1 - 1.5 * iqr
     higher = q3 + thresh * iqr
     lower = q1 - thresh * iqr
-    print(f'q1: {q1}, median: {median}, q3: {q3}, iqr: {iqr}, lower: {lower}, higher: {higher}')
+    # print(f'q1: {q1}, median: {median}, q3: {q3}, iqr: {iqr}, lower: {lower}, higher: {higher}')
     return torch.nonzero(torch.logical_or(grad > higher, grad < lower)).flatten()
 
-def compute_mbes_outlier_rejection_metrics(gradients, gt_rejected):
+def compute_mbes_outlier_rejection_metrics(gradients, gt_rejected, thresh=5.):
     grad_median = torch.median(gradients).item()
     # get indices where abs(gradients - grad_median) > std(gradients)*1.
     # grad_outliers = torch.nonzero(torch.abs(gradients - grad_median) > torch.std(gradients)*1.).flatten()
-    grad_outliers = compute_outliers_iqr(gradients)
-    print(f'Number of outliers: {len(grad_outliers)}')
+    grad_outliers = compute_outliers_iqr(gradients, thresh=thresh)
+    # print(f'Number of outliers: {len(grad_outliers)}')
 
     # compute TP, FP, TN, FN using pred=grad_outliers and gt=gt_rejected
     def isin(a, b):
