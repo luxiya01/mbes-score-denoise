@@ -203,13 +203,15 @@ def validate(it, dset, store_results=False, ckpt_path=None):
 
         pcl_denoised, init_grad = patch_based_denoise(model, pcl_noisy, ld_step_size=args.ld_step_size,
                                                       denoise_knn=args.denoise_knn)
-        metrics_denorm = compute_mbes_denoising_metrics(pcl_denoised, pcl_clean, valid_mask=valid_mask, denormalize=True,
+        denoising_results = compute_mbes_denoising_metrics(pcl_denoised, pcl_clean, valid_mask=valid_mask, denormalize=True,
                                               scale_xy=scale_xy, scale_z=scale_z, center=center)
-        metrics_binary = compute_mbes_outlier_rejection_metrics(init_grad.flatten(), gt_rejected_mask.flatten(),
+        outlier_results = compute_mbes_outlier_rejection_metrics(init_grad.flatten(), gt_rejected_mask.flatten(),
                                                                 thresh=1.5)
 
-        for k, v in metrics_denorm.items():
+        for k, v in denoising_results.items():
             denoising_metrics_denorm[k].append(v)
+        for k, v in outlier_results.items():
+            binary_metrics[k].append(v)
 
         if store_results:
             idx = data['name']
@@ -228,13 +230,11 @@ def validate(it, dset, store_results=False, ckpt_path=None):
 
     avg_metrics = {f'{k}_denorm': np.mean(v) for k, v in denoising_metrics_denorm.items()}
     
-    for k, v in metrics_binary.items():
-        binary_metrics[f'{k}_sum'] = np.sum(v)
     # compute accuracy, precision, recall, F1-score from binary_metrics using the _sum values
-    TP_sum = binary_metrics['TP_sum']
-    FP_sum = binary_metrics['FP_sum']
-    TN_sum = binary_metrics['TN_sum']
-    FN_sum = binary_metrics['FN_sum']
+    TP_sum = np.sum(binary_metrics['TP'])
+    FP_sum = np.sum(binary_metrics['FP'])
+    TN_sum = np.sum(binary_metrics['TN'])
+    FN_sum = np.sum(binary_metrics['FN'])
     binary_metrics['accuracy'] = (TP_sum + TN_sum) / (TP_sum + FP_sum + TN_sum + FN_sum)
     binary_metrics['precision'] = TP_sum / (TP_sum + FP_sum)
     binary_metrics['recall'] = TP_sum / (TP_sum + FN_sum)
