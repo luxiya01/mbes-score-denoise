@@ -7,9 +7,16 @@ import numpy as np
 from torchvision.transforms import Compose
 
 class NormalizeZ(object):
+    """
+    Normalize the point cloud's XY and Z separately.
+    XY are normalized by the maximum distance from the center,
+    and Z is normalized by the maximum absolute value (of the patch if z_scale=None,
+    else according to the global z_scale provided).
+    """
 
-    def __init__(self):
+    def __init__(self, z_scale=None):
         super().__init__()
+        self.z_scale = z_scale
 
     @staticmethod
     def normalize(pcl, center=None, scale_xy=None, scale_z=None):
@@ -22,8 +29,9 @@ class NormalizeZ(object):
             p_min = pcl.min(dim=0, keepdim=True)[0]
             center = (p_max + p_min) / 2
         pcl = pcl - center
-        if scale_xy is None and scale_z is None:
+        if scale_xy is None:
             scale_xy = (pcl[:, :2] ** 2).sum(dim=1, keepdim=True).sqrt().max(dim=0, keepdim=True)[0]
+        if scale_z is None:
             scale_z = pcl[:, 2].abs().max(dim=0, keepdim=True)[0]
         pcl[:, :2] /= scale_xy
         pcl[:, 2] /= scale_z
@@ -34,7 +42,8 @@ class NormalizeZ(object):
         and use the same center and scale to normalize the clean
         point cloud.
         """
-        data['pcl_noisy'], center, scale_xy, scale_z = self.normalize(data['pcl_raw'])
+        data['pcl_noisy'], center, scale_xy, scale_z = self.normalize(data['pcl_raw'],
+                                                                      scale_z=self.z_scale)
         data['center'] = center
         data['scale_xy'] = scale_xy
         data['scale_z'] = scale_z
