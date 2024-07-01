@@ -41,40 +41,6 @@ class NormalizeZ(object):
         data['pcl_clean'], _, _, _ = self.normalize(data['pcl_clean'], center, scale_xy, scale_z)
         return data
 
-
-class NormalizeNoisyToUnitSphere(object):
-
-    def __init__(self):
-        super().__init__()
-
-    @staticmethod
-    def normalize(pcl, center=None, scale=None):
-        """
-        Args:
-            pcl:  The point cloud to be normalized, (N, 3)
-        """
-        if center is None:
-            p_max = pcl.max(dim=0, keepdim=True)[0]
-            p_min = pcl.min(dim=0, keepdim=True)[0]
-            center = (p_max + p_min) / 2    # (1, 3)
-        pcl = pcl - center
-        if scale is None:
-            scale = (pcl ** 2).sum(dim=1, keepdim=True).sqrt().max(dim=0, keepdim=True)[0]  # (1, 1)
-        pcl = pcl / scale
-        return pcl, center, scale
-
-    def __call__(self, data):
-        """Normalize the noisy point cloud to the unit sphere,
-        and use the same center and scale to normalize the clean
-        point cloud.
-        """
-        data['pcl_noisy'], center, scale = self.normalize(data['pcl_raw'])
-        data['center'] = center
-        data['scale'] = scale
-        data['pcl_clean'], _, _ = self.normalize(data['pcl_clean'], center, scale)
-        return data
-
-
 class NormalizeUnitSphere(object):
 
     def __init__(self):
