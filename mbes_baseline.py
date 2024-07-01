@@ -74,24 +74,27 @@ def compute_binary_metrics(pred, gt):
 
 def main():
     split = 'test_data.npz'
-    raw_path = f"/media/li/LaCie/Datasets/Gullmarsfjord-190618-svp+30/merged/patches_32pings_400_beams/{split}/"
-    gt_path = f"/media/li/LaCie/Datasets/Gullmarsfjord-190618-svp+30/draping_0.5m_/patches_32pings_400beams/{split}/"
-    mbesdata = MBESDataset(raw_path, gt_path, split="", transform=NormalizeZ())
+    raw_path = f"/media/li/LaCie/Datasets/Gullmarsfjord-190618-svp+30/merged/patches_32pings_400_beams/"
+    gt_path = f"/media/li/LaCie/Datasets/Gullmarsfjord-190618-svp+30/draping_0.5m_/patches_32pings_400beams/"
+    mbesdata = MBESDataset(raw_path, gt_path, split=split, transform=NormalizeZ(z_scale=28.82))
 
     gt_rejection_mask = []
     statistical_params = {
-        "nb_neighbors": np.arange(10, 100, 10),
-        "std_ratio": np.arange(.5, 5, .5),
+        "nb_neighbors": np.arange(10, 101, 10),
+        "std_ratio": np.arange(.5, 5.1, .5),
     }
     radius_params = {
-        "nb_points": np.arange(10, 100, 10),
-        "radius": np.arange(.01, .1, .01),
+        "nb_points": np.arange(10, 101, 10),
+        "radius": np.arange(.01, .101, .01),
     }
     # create a results dictionary to store the metrics for each parameter combination
     results = defaultdict(list)
 
     for i, data in tqdm(enumerate(mbesdata), total=len(mbesdata)):
-        gt_rejection_mask.append(data["rejection_mask"].flatten())
+        rejected_mask = np.zeros(len(data["pcl_noisy"]), dtype=bool)
+        rejected = data["rejected"].flatten()
+        rejected_mask[rejected] = True
+        gt_rejection_mask.append(rejected_mask)
 
         # iterate over all parameter combinations
         for nb_neighbors in statistical_params["nb_neighbors"]:
@@ -150,7 +153,7 @@ def main():
             "radius": radius,
             **metrics,
         }
-    df.to_csv("pcl_outlier_removal_baselines.csv", index=True)
+    df.to_csv("pcl_outlier_removal_baselines_global_z_norm.csv", index=True)
 
     print(f"Total number of points: {len(gt_rejection_mask)}")
     print(f"Number of gt rejected points: {gt_rejection_mask.sum()}")
