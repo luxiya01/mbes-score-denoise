@@ -188,6 +188,8 @@ def hausdorff_distance_unit_sphere(gen, ref):
     return dists_hausdorff
 
 def compute_mbes_denoising_metrics(gen, ref, valid_mask, denormalize=True, scale_xy=None, scale_z=None, center=None):
+    gen = gen.clone()
+    ref = ref.clone()
     if denormalize:
         for pcl in [gen, ref]:
             pcl *= scale_z
@@ -214,7 +216,7 @@ def compute_outliers_iqr(grad, thresh=5.):
     higher = q3 + thresh * iqr
     lower = q1 - thresh * iqr
     # print(f'q1: {q1}, median: {median}, q3: {q3}, iqr: {iqr}, lower: {lower}, higher: {higher}')
-    return torch.nonzero(torch.logical_or(grad > higher, grad < lower)).flatten()
+    return torch.nonzero(torch.logical_or(grad > higher, grad < lower).flatten()).flatten()
 
 def compute_mbes_outlier_rejection_metrics(gradients, gt_rejected, thresh=5.):
     grad_median = torch.median(gradients).item()
