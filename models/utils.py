@@ -188,23 +188,31 @@ def hausdorff_distance_unit_sphere(gen, ref):
     return dists_hausdorff
 
 def compute_mbes_denoising_metrics(gen, ref, valid_mask, denormalize=True, scale_xy=None, scale_z=None, center=None):
-    gen = gen.clone()
-    ref = ref.clone()
-    if denormalize:
-        for pcl in [gen, ref]:
-            pcl *= scale_z
-            pcl[:, :2] *= scale_xy
-            pcl += center
+    if not isinstance(gen, torch.Tensor):
+        gen = torch.tensor(gen)
+        ref = torch.tensor(ref)
+        valid_mask = torch.tensor(valid_mask)
+        scale_xy = torch.tensor(scale_xy)
+        scale_z = torch.tensor(scale_z)
+        center = torch.tensor(center)
 
-    cd = pytorch3d.loss.chamfer_distance(gen.unsqueeze(0),
-                                         ref.unsqueeze(0),
+    gen_cloned = gen.clone()
+    ref_cloned = ref.clone()
+    if denormalize:
+        for pcl in [gen_cloned, ref_cloned]:
+            pcl.mul_(scale_z)
+            pcl[:, :2].mul_(scale_xy)
+            pcl.add_(center)
+
+    cd = pytorch3d.loss.chamfer_distance(gen_cloned.unsqueeze(0),
+                                         ref_cloned.unsqueeze(0),
                                          point_reduction='mean')[0].item()
 
-    gen_masked = gen.view(-1, 400, 3)[valid_mask]
-    ref = ref.reshape(gen_masked.shape)
-    z_diff = (gen_masked[:, 2] - ref[:, 2]).mean().item()
-    z_abs_diff = (gen_masked[:, 2] - ref[:, 2]).abs().mean().item()
-    z_rmse = torch.sqrt((gen_masked[:, 2] - ref[:, 2]).pow(2).mean()).item()
+    gen_masked = gen_cloned.view(-1, 400, 3)[valid_mask]
+    ref_cloned = ref_cloned.reshape(gen_masked.shape)
+    z_diff = (gen_masked[:, 2] - ref_cloned[:, 2]).mean().item()
+    z_abs_diff = (gen_masked[:, 2] - ref_cloned[:, 2]).abs().mean().item()
+    z_rmse = torch.sqrt((gen_masked[:, 2] - ref_cloned[:, 2]).pow(2).mean()).item()
     return {'cd': cd, 'z_diff': z_diff, 'z_abs_diff': z_abs_diff, 'z_rmse': z_rmse}
 
 def compute_outliers_iqr(grad, thresh=5.):
