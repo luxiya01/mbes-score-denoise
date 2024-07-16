@@ -200,7 +200,7 @@ def compute_mbes_denoising_metrics(gen, ref, valid_mask, denormalize=True, scale
     ref_cloned = ref.clone()
     if denormalize:
         for pcl in [gen_cloned, ref_cloned]:
-            pcl.mul_(scale_z)
+            pcl[:, 2].mul_(scale_z)
             pcl[:, :2].mul_(scale_xy)
             pcl.add_(center)
 
