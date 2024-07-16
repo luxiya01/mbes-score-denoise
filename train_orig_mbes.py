@@ -24,6 +24,7 @@ parser = argparse.ArgumentParser()
 ## Dataset and loader
 parser.add_argument('--raw_data_root', type=str, required=True)
 parser.add_argument('--gt_root', type=str, required=True)
+parser.add_argument('--use_ping_idx', action='store_true', help='Use ping, beam, range representation')
 parser.add_argument('--noise_min', type=float, default=0.005)
 parser.add_argument('--noise_max', type=float, default=0.020)
 parser.add_argument('--train_batch_size', type=int, default=32)
@@ -89,6 +90,11 @@ global_norm_z = {
     'validation': 31.44,
     'test': 28.82,
 }
+global_norm_range = {
+    'train': 79.00,
+    'validation':  50.19,
+    'test': 48.84,
+}
 instance_norm_z = {
     'train': None,
     'validation': None,
@@ -96,12 +102,14 @@ instance_norm_z = {
 }
 if args.global_norm_z:
     norm_z_dict = global_norm_z
+    if args.use_ping_idx:
+        norm_z_dict = global_norm_range
 else:
     norm_z_dict = instance_norm_z
 
 def load_training_data():
     train_dset = MBESDataset(
-        use_ping_idx=False,
+        use_ping_idx=args.use_ping_idx,
         raw_data_root=args.raw_data_root,
         gt_root=args.gt_root,
         split='train_data_merged',
@@ -113,7 +121,7 @@ def load_training_data():
 
     print(f"train_dset: {len(train_dset)}")
     val_dset = MBESDataset(
-        use_ping_idx=False,
+        use_ping_idx=args.use_ping_idx,
         raw_data_root=args.raw_data_root,
         gt_root=args.gt_root,
         split='validation',
@@ -127,7 +135,7 @@ def load_training_data():
 
 def load_test_data():
     test_dset = MBESDataset(
-        use_ping_idx=False,
+        use_ping_idx=args.use_ping_idx,
         raw_data_root=args.raw_data_root,
         gt_root=args.gt_root,
         split='test_data.npz',
@@ -207,7 +215,7 @@ def validate(it, dset, store_results=False, ckpt_path=None):
             norm_str = 'global'
         else:
             norm_str = 'instance'
-        save_dir = f'{ckpt_path}_results_{norm_str}_norm'
+        save_dir = f'{ckpt_path}_results_{norm_str}_norm_knn{args.denoise_knn}'
         os.makedirs(save_dir, exist_ok=False)
         
 
