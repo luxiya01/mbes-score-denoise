@@ -37,7 +37,6 @@ class MBESDataset(Dataset):
         data = np.load(self.raw_data_files[idx], allow_pickle=True)
         angles = data["angle"]
         pcl = np.stack([data["X"], data["Y"], data["Z_relative"]], axis=-1)
-        pcl = pcl.reshape(-1, 3)
 
         # Load the rejection mask and record the indices of rejected points, indexed as 1D array
         rejected = np.argwhere(data["rejected"].flatten(), ).flatten()
@@ -45,10 +44,8 @@ class MBESDataset(Dataset):
 
     def _load_gt_data(self, idx):
         data = np.load(self.gt_data_files[idx], allow_pickle=True)
-        # filter out invalid draping points
         pcl = data['data']
         valid_mask = data['valid_mask']
-        pcl = pcl[valid_mask]
         return pcl, valid_mask
 
     def __len__(self):
@@ -60,6 +57,10 @@ class MBESDataset(Dataset):
         if self.use_ping_idx:
             pcl_raw = self._use_ping_beam_range_representation(pcl_raw, angles)
             pcl_gt = self._use_ping_beam_range_representation(pcl_gt, angles)
+
+        pcl_raw = pcl_raw.reshape(-1, 3)
+        # filter out invalid draping points
+        pcl_gt = pcl_gt[valid_mask]
 
         data = {
             'pcl_clean': torch.from_numpy(pcl_gt).clone().float(),
