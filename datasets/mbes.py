@@ -12,8 +12,10 @@ class MBESDataset(Dataset):
         self.raw_data_root = os.path.join(raw_data_root, split)
         self.gt_root = os.path.join(gt_root, split)
 
-        self.raw_data_files = sorted([os.path.join(self.raw_data_root, f) for f in os.listdir(self.raw_data_root)])
-        self.gt_data_files = sorted([os.path.join(self.gt_root, f) for f in os.listdir(self.gt_root)])
+        self.raw_data_files = sorted([os.path.join(self.raw_data_root, f) for f in os.listdir(self.raw_data_root)
+                                      if f.split('.')[-1] == 'npz'])
+        self.gt_data_files = sorted([os.path.join(self.gt_root, f) for f in os.listdir(self.gt_root)
+                                     if f.split('.')[-1] == 'npz'])
         print(f'len raw_data_files: {len(self.raw_data_files)}')
         print(f'len gt_data_files: {len(self.gt_data_files)}')
         assert len(self.raw_data_files) == len(self.gt_data_files)
