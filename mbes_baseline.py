@@ -70,6 +70,13 @@ def remove_outlier_ordinary_kriging(pcl, nb_neighbors=200, thresh=0.02):
             kept_points.append(i)
     return rejected_indices_to_mask(kept_points, len(pcl))
 
+def compute_binary_metrics_helper(pred, gt):
+    tp = np.logical_and(pred, gt)
+    fp = np.logical_and(pred, np.logical_not(gt))
+    tn = np.logical_and(np.logical_not(pred), np.logical_not(gt))
+    fn = np.logical_and(np.logical_not(pred), gt)
+    return {'tp': tp, 'fp': fp, 'tn': tn, 'fn': fn}
+
 
 def compute_binary_metrics(pred, gt):
     """
@@ -79,10 +86,11 @@ def compute_binary_metrics(pred, gt):
     Returns:
         A dictionary containing relevant binary classification metrics.
     """
-    tp = np.logical_and(pred, gt).sum()
-    fp = np.logical_and(pred, np.logical_not(gt)).sum()
-    tn = np.logical_and(np.logical_not(pred), np.logical_not(gt)).sum()
-    fn = np.logical_and(np.logical_not(pred), gt).sum()
+    metrics = compute_binary_metrics_helper(pred, gt)
+    tp = metrics['tp'].sum()
+    fp = metrics['fp'].sum()
+    tn = metrics['tn'].sum()
+    fn = metrics['fn'].sum()
 
     accuracy = (tp + tn) / (tp + fp + tn + fn)
     precision = tp / (tp + fp) if tp + fp != 0 else 0
