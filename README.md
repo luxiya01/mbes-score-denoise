@@ -1,5 +1,5 @@
 # Score-Based Multibeam Point Cloud Denoising (AUV Symposium 2024)
-<img src="scorenet-schematics.png" alt="multibeam scorenet schematics" width="50%" />
+<img src="scorenet-schematics.png" alt="multibeam scorenet schematics" width="100%" />
 
 [Paper] [TODO]()
 
