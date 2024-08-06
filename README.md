@@ -1,7 +1,7 @@
 # Score-Based Multibeam Point Cloud Denoising (AUV Symposium 2024)
-<img src="teaser.png" alt="teaser" width="50%" />
+<img src="scorenet-schematics.png" alt="multibeam scorenet schematics" width="50%" />
 
-[Paper] [https://arxiv.org/abs/2107.10981](https://arxiv.org/abs/2107.10981)
+[Paper] [TODO]()
 
 ## Installation
 
