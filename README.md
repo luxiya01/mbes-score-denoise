@@ -1,7 +1,13 @@
 # Score-Based Multibeam Point Cloud Denoising (AUV Symposium 2024)
-<img src="scorenet-schematics.png" alt="multibeam scorenet schematics" width="100%" />
+This repository contains the official implementation of the IEEE OES AUV Symposium 2024 paper
 
-[Paper] [TODO]()
+> [**Score-Based Multibeam Point Cloud Denoising**](https://arxiv.org/abs/2409.13143), <br>
+> [Li Ling](https://www.kth.se/profile/liling), [Yiping Xie](https://xyp8023.github.io/), [Nils Bore](https://scholar.google.com/citations?user=wPea4DkAAAAJ&hl=en&oi=ao), [John Folkesson](https://www.kth.se/profile/johnf) <br>
+> IEEE/OES Autonomous Underwater Vehicles Symposium (AUV), 2024
+
+The code is based on [Score-Based Point Cloud Denoising (ICCV 2021) implementation](https://github.com/luost26/score-denoise)
+
+<img src="scorenet-schematics.png" alt="multibeam scorenet schematics" width="100%" />
 
 ## Installation
 
@@ -47,9 +53,12 @@ python train_orig_mbes.py \
 Please find tunable parameters in the script.
 
 ## Citation
-#TODO
-
-
-
-
-
+If you find our work useful, please cite it as
+```
+@article{ling2024score,
+  title={Score-Based Multibeam Point Cloud Denoising},
+  author={Ling, Li and Xie, Yiping and Bore, Nils and Folkesson, John},
+  journal={arXiv preprint arXiv:2409.13143},
+  year={2024}
+}
+```
