@@ -35,11 +35,6 @@ The code has been tested in the following environment:
 | Open3D                                                       | 0.18.0  | Used for baseline evaluations.                               |
 | CUDA | 11.1 | |
 
-## Datasets
-
-Due to restrictions, we are unable to release the original training data.
-To create your own dataset for training, please follow the instructions provided [here](https://github.com/luxiya01/mbes-cleaning).
-
 ## Training and Evaluation
 Both training and testing are performed using `train_orig_mbes.py` file.
 
@@ -59,6 +54,18 @@ python train_orig_mbes.py \
        --ckpt_path <path to the .pt checkpoint for evaluation>
 ```
 Please check the code for more tunable hyperparameters.
+
+## Datasets
+
+Due to restrictions, we are unable to release the original training data.
+
+To create your own dataset for training using [EIVA NaviSuite exports](https://www.eiva.com/products/navisuite), please follow the instructions provided [here](https://github.com/luxiya01/mbes-cleaning).
+
+You can also create your own training dataset using other custom methods without EIVA softwares. The training script expects the following content per multibeam point cloud:
+- `pcl_raw`: Raw multibeam point cloud containing noise and outliers (Shape: `Nx3`)
+- `pcl_clean`: Corresponding clean multibeam point cloud (Shape: `Mx3`)
+- `rejected`: A boolean mask for `pcl_raw` that specifies whether the point is an outlier (Shape: `Nx1`)
+
 
 ## Citation
 If you find our work useful, please cite it as
